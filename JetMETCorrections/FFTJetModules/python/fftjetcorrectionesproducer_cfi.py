@@ -131,6 +131,42 @@ def configure_L2L3_fftjet_esproducer(sequenceTag, tableName, tableCategory):
     )
     return (config, esProducer)
 
+
+def configure_L2Res_fftjet_esproducer(sequenceTag, tableName, tableCategory):
+    #
+    # The ES producer name comes from the C++ plugin registration code
+    esProducer = fftjet_corr_types[sequenceTag].esProducer
+    config = cms.ESProducer(
+        esProducer,
+        sequence = cms.VPSet(
+            cms.PSet(
+                level = cms.uint32(3),
+                applyTo = cms.string("DataOnly"),
+                adjuster = cms.PSet(
+                    Class = cms.string("FFTSimpleScalingAdjuster")
+                ),
+                scalers = cms.VPSet(
+                    cms.PSet(
+                        Class = cms.string("FFTSpecificScaleCalculator"),
+                        Subclass = cms.PSet(
+                                Class = cms.string("L2ResScaleCalculator"),
+                                radiusFactor = cms.double(1.0)
+                        ),
+                        name = cms.string(tableName),
+                        nameIsRegex = cms.bool(False),
+                        category = cms.string(tableCategory),
+                        categoryIsRegex = cms.bool(False)
+                    )
+                )
+            )
+        ),
+        isArchiveCompressed = cms.bool(False),
+        verbose = cms.untracked.bool(False)
+    )
+    return (config, esProducer)
+
+
+
 #
 # Procedure for configuring the ES source which fetches
 # the database record. "process.CondDBCommon" should be
