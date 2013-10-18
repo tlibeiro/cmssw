@@ -6,7 +6,7 @@ numEventsToRun = 10
 # Cone radii to calibrate
 calib_cone_radii = (0.2, 0.25, 0.3, 0.35, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0)
 #####change radius cone
-def adjust_cone_radius(R,pfJetsJetrecoPrototype):
+def adjust_cone_radius(R,pfJetsJetrecoPrototype,genJetsJetrecoPrototype):
 #
 	rtag = "R%d" % (R*100.0)
 #
@@ -34,9 +34,23 @@ def adjust_cone_radius(R,pfJetsJetrecoPrototype):
 #
 	newPFCorr_module = "fftPFJetCorr" + rtag
 #
+	newGenReco = genJetsJetrecoPrototype.clone(
+				recoScaleCalcPeak = cms.PSet(
+					Class = cms.string("ConstDouble"),
+					value = cms.double(R)
+					),
+				recoScaleCalcJet = cms.PSet(
+					Class = cms.string("ConstDouble"),
+					value = cms.double(R)
+					)
+				)
+	newGenReco.fixedScale = cms.double(scale)
+	newGenReco_module = "fftGenJet" + rtag
+
 	return (
 			(newPFReco, newPFReco_module),
 			(newPFCorr, newPFCorr_module),
+			(newGenReco, newGenReco_module),
 			)
 ##### import skeleton process
 from PhysicsTools.PatAlgos.patTemplate_cfg import *
@@ -143,7 +157,13 @@ fftjetPileupEstimatorPf.calibrationCurveName = cms.string("FFTPileupRhoCalibrati
 fftjetPileupEstimatorPf.uncertaintyCurveName = cms.string("FFTPileupRhoUncertaintyTable")
 fftjetPileupEstimatorPf.loadCalibFromDB = cms.bool(True)
 
+from RecoJets.Configuration.GenJetParticles_cff import genParticlesForJetsNoNu
 from RecoJets.FFTJetProducers.fftjetpatrecoproducer_cfi import *
+# Pattern recognition for GenJets
+fftjetGenPatReco     = fftjetPatrecoProducer.clone()
+fftjetGenPatReco.src = cms.InputTag("genParticlesForJetsNoNu")
+fftjetGenPatReco.jetType = cms.string("GenJet")
+fftjetGenPatReco.InitialScales = fftjet_patreco_scales_50
 # Pattern recognition for PFJets
 fftjetPFPatReco = fftjetPatrecoProducer.clone()
 fftjetPFPatReco.src = cms.InputTag('fftjetcleanup')
@@ -154,6 +174,16 @@ fftjetPFPatReco.calculateClusterRadii = cms.bool(True)
 fftjetPFPatReco.calculateClusterSeparations = cms.bool(True)
 # The Jet producer module
 from RecoJets.FFTJetProducers.fftjetproducer_cfi import *
+##Gen Jets
+fftjetGenJetMaker = fftjetJetMaker.clone()
+fftjetGenJetMaker.InitialScales = fftjet_patreco_scales_50
+fftjetGenJetMaker.src = cms.InputTag("genParticlesForJetsNoNu")
+fftjetGenJetMaker.jetType = cms.string("GenJet")
+fftjetGenJetMaker.maxIterations = cms.uint32(1000)
+fftjetGenJetMaker.fixedScale = cms.double(0.2)
+fftjetGenJetMaker.PeakSelectorConfiguration = fftjet_peak_selector_allpass
+fftjetGenJetMaker.treeLabel = cms.InputTag('fftjetGenPatReco','FFTJetPatternRecognition')
+##PF Jets
 fftjetPFJetMaker = fftjetJetMaker.clone()
 fftjetPFJetMaker.InitialScales = fftjet_patreco_scales_50
 fftjetPFJetMaker.src = cms.InputTag('fftjetcleanup')
@@ -182,15 +212,20 @@ process.fftjetcleanup    = fftjetPfPileupCleaner
 process.pileupprocessor  = fftjetPileupProcessorPf
 process.pileupestimator  = fftjetPileupEstimatorPf
 process.fftjetPFPatReco  = fftjetPFPatReco
+process.fftjetGenPatReco = fftjetGenPatReco
+process.genParticlesForJetsNoNu = genParticlesForJetsNoNu
 
 process.myseq  = cms.Sequence (
 									process.fftjetcleanup*
 									process.pileupprocessor*
 									process.pileupestimator*
-									process.fftjetPFPatReco)
+									process.fftjetPFPatReco*
+									process.genParticlesForJetsNoNu*
+									process.fftjetGenPatReco
+								)
 
 for R in calib_cone_radii:
-    for config, modulename in adjust_cone_radius(R,fftjetPFJetMaker):
+    for config, modulename in adjust_cone_radius(R,fftjetPFJetMaker,fftjetGenJetMaker):
         setattr(process, modulename, config)
         process.myseq *= getattr(process, modulename)
 process.p = cms.Path(process.myseq) 
@@ -199,9 +234,6 @@ process.out = cms.OutputModule("PoolOutputModule",
     fileName = cms.untracked.string(OutputFileName),
 #    outputCommands = cms.untracked.vstring('drop *')
     outputCommands = cms.untracked.vstring(
-										 'keep *_*_FFTJetPatternRecognition_*',
-										 'keep *_selectedPat*_*_*',
-                     'keep *_fft*_*_*',
 										 'keep *_*_*_*'
      									)                   
 	)

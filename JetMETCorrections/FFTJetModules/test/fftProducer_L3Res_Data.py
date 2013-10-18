@@ -56,7 +56,7 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 10000
 process.options   = cms.untracked.PSet( wantSummary = cms.untracked.bool(False) )
 process.options = cms.untracked.PSet(SkipEvent = cms.untracked.vstring('ProductNotFound'))
 process.source = cms.Source("PoolSource", fileNames = cms.untracked.vstring(
-'/store/mc/Summer12_DR53X/TTJets_MassiveBinDECAY_TuneZ2star_8TeV-madgraph-tauola/AODSIM/PU_S10_START53_V7C-v1/00000/16923B4D-7025-E211-9F44-0025901D484C.root',
+'/store/data/Run2012A/Photon/AOD/22Jan2013-v1/20000/007A5A14-1069-E211-8BDD-0025905964B4.root',
 ) )
 #############fftjet config####################################
 # apply corrections
@@ -199,9 +199,6 @@ process.out = cms.OutputModule("PoolOutputModule",
     fileName = cms.untracked.string(OutputFileName),
 #    outputCommands = cms.untracked.vstring('drop *')
     outputCommands = cms.untracked.vstring(
-										 'keep *_*_FFTJetPatternRecognition_*',
-										 'keep *_selectedPat*_*_*',
-                     'keep *_fft*_*_*',
 										 'keep *_*_*_*'
      									)                   
 	)
